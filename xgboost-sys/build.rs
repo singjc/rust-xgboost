@@ -33,17 +33,21 @@ fn main() {
     #[cfg(not(feature = "cuda"))]
     let mut dst = Config::new(&xgb_root);
 
-    let dst = dst.uses_cxx11()
+    let mut dst = dst.uses_cxx11()
         .define("BUILD_STATIC_LIB", "ON");
 
     #[cfg(target_os = "macos")]
-    let dst =
-        dst
-            .define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
-            .define("CMAKE_CXX_COMPILER", "/opt/homebrew/opt/llvm/bin/clang++")
-            .define("OPENMP_LIBRARIES", "/opt/homebrew/opt/llvm/lib")
-            .define("OPENMP_INCLUDES", "/opt/homebrew/opt/llvm/include");
-
+    {
+        let path = PathBuf::from("/opt/homebrew/"); // check for m1 vs intel config
+        if let Ok(_dir) = std::fs::read_dir(&path) {
+            dst =
+                dst
+                    .define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
+                    .define("CMAKE_CXX_COMPILER", "/opt/homebrew/opt/llvm/bin/clang++")
+                    .define("OPENMP_LIBRARIES", "/opt/homebrew/opt/llvm/lib")
+                    .define("OPENMP_INCLUDES", "/opt/homebrew/opt/llvm/include");
+        };
+    }
     let dst = dst.build();
 
     let xgb_root = xgb_root.canonicalize().unwrap();
