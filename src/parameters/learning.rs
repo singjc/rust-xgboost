@@ -81,11 +81,11 @@ impl Clone for Objective {
 impl ToString for Objective {
     fn to_string(&self) -> String {
         match *self {
-            Objective::RegLinear => "reg:linear".to_owned(),
+            Objective::RegLinear => "reg:squarederror".to_owned(),
             Objective::RegLogistic => "reg:logistic".to_owned(),
             Objective::BinaryLogistic => "binary:logistic".to_owned(),
             Objective::BinaryLogisticRaw => "binary:logitraw".to_owned(),
-            Objective::GpuRegLinear => "gpu:reg:linear".to_owned(),
+            Objective::GpuRegLinear => "gpu:reg:squarederror".to_owned(),
             Objective::GpuRegLogistic => "gpu:reg:logistic".to_owned(),
             Objective::GpuBinaryLogistic => "gpu:binary:logistic".to_owned(),
             Objective::GpuBinaryLogisticRaw => "gpu:binary:logitraw".to_owned(),

@@ -12,8 +12,8 @@ fn main() {
 
     // load train and test matrices from text files (in LibSVM format)
     println!("Custom objective example...");
-    let dtrain = DMatrix::load("../../xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
-    let dtest = DMatrix::load("../../xgboost-sys/xgboost/demo/data/agaricus.txt.test").unwrap();
+    let dtrain = DMatrix::load(r#"{"uri": "../../xgboost-sys/xgboost/demo/data/agaricus.txt.train?format=libsvm"}"#).unwrap();
+    let dtest = DMatrix::load(r#"{"uri": "../../xgboost-sys/xgboost/demo/data/agaricus.txt.test?format=libsvm"}"#).unwrap();
 
     // configure objectives, metrics, etc.
     let learning_params = parameters::learning::LearningTaskParametersBuilder::default()
