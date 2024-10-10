@@ -148,8 +148,29 @@ impl Booster {
             dmats
         };
 
-        let bst = Booster::new_with_cached_dmats(&params.booster_params, &cached_dmats)?;
-        for i in 0..params.boost_rounds as i32 {
+        let mut bst = Booster::new_with_cached_dmats(&params.booster_params, &cached_dmats)?;
+        // load distributed code checkpoint from rabit
+        let mut version = bst.load_rabit_checkpoint()?;
+        debug!("Loaded Rabit checkpoint: version={}", version);
+        assert!(unsafe { xgboost_sys::RabitGetWorldSize() != 1 || version == 0 });
+        let start_iteration = version / 2;
+        for i in start_iteration..params.boost_rounds as i32 {
+            // distributed code: need to resume to this point
+            // skip first update if a recovery step
+            if version % 2 == 0 {
+                if let Some(objective_fn) = params.custom_objective_fn {
+                    debug!("Boosting in round: {}", i);
+                    bst.update_custom(params.dtrain, objective_fn)?;
+                } else {
+                    debug!("Updating in round: {}", i);
+                    bst.update(params.dtrain, i)?;
+                }
+                let _ = bst.save_rabit_checkpoint()?;
+                version += 1;
+            }
+
+            assert!(unsafe { xgboost_sys::RabitGetWorldSize() == 1 || version == xgboost_sys::RabitVersionNumber() });
+
             if let Some(eval_sets) = params.evaluation_sets {
                 let mut dmat_eval_results = bst.eval_set(eval_sets, i)?;
 
@@ -182,6 +203,10 @@ impl Booster {
                 }
                 println!();
             }
+
+            // do checkpoint after evaluation, in case evaluation also updates booster.
+            let _ = bst.save_rabit_checkpoint();
+            version += 1;
         }
 
         Ok(bst)
@@ -534,6 +559,16 @@ impl Booster {
 
         assert_eq!(out_len as usize, out_vec.len());
         Ok(out_vec.join("\n"))
+    }
+
+    pub(crate) fn load_rabit_checkpoint(&self) -> XGBResult<i32> {
+        let mut version = 0;
+        xgb_call!(xgboost_sys::XGBoosterLoadRabitCheckpoint(self.handle, &mut version))?;
+        Ok(version)
+    }
+
+    pub(crate) fn save_rabit_checkpoint(&self) -> XGBResult<()> {
+        xgb_call!(xgboost_sys::XGBoosterSaveRabitCheckpoint(self.handle))
     }
 
     pub fn set_param(&mut self, name: &str, value: &str) -> XGBResult<()> {

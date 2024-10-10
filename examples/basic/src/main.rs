@@ -66,15 +66,15 @@ fn main() {
 
     // save and load model file
     println!("\nSaving and loading Booster model...");
-    booster.save("xgb.model").unwrap();
-    let booster = Booster::load("xgb.model").unwrap();
+    booster.save("xgb.json").unwrap();
+    let booster = Booster::load("xgb.json").unwrap();
     let preds2 = booster.predict(&dtest).unwrap();
     assert_eq!(preds, preds2);
 
     // save and load data matrix file
     println!("\nSaving and loading matrix data...");
     dtest.save("test.dmat").unwrap();
-    let dtest2 = DMatrix::load("test.dmat").unwrap();
+    let dtest2 = DMatrix::load_binary("test.dmat").unwrap();
     assert_eq!(booster.predict(&dtest2).unwrap(), preds);
 
     // error handling example

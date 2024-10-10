@@ -33,6 +33,7 @@ fn main() {
     #[cfg(not(feature = "cuda"))]
     let mut dst = Config::new(&xgb_root);
 
+    #[allow(unused_mut)]
     let mut dst = dst.uses_cxx11()
         .define("BUILD_STATIC_LIB", "ON");
 
@@ -54,16 +55,11 @@ fn main() {
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
-        .blocklist_item("std::.*")// stdlib is not well supported by bindgen
+        .blocklist_item("std::__1.*")
         .clang_args(&["-x", "c++", "-std=c++11"])
         .clang_arg(format!("-I{}", xgb_root.join("include").display()))
         .clang_arg(format!("-I{}", xgb_root.join("rabit/include").display()))
         .clang_arg(format!("-I{}", xgb_root.join("dmlc-core/include").display()));
-
-    #[cfg(target_os = "linux")]
-    let bindings = bindings
-        .clang_arg(format!("-I/usr/include/c++/11"))
-        .clang_arg(format!("-I/usr/include/x86_64-linux-gnu/c++/11"));
 
     #[cfg(feature = "cuda")]
     let bindings = bindings.clang_arg("-I/usr/local/cuda/include");
@@ -84,8 +80,11 @@ fn main() {
     // link to appropriate C++ lib
     if target.contains("apple") {
         println!("cargo:rustc-link-lib=c++");
+        println!("cargo:rustc-link-search=native=/opt/homebrew/opt/libomp/lib");
         println!("cargo:rustc-link-lib=dylib=omp");
     } else {
+        println!("cargo:rustc-cxxflags=-std=c++17");
+        println!("cargo:rustc-link-lib=stdc++fs");
         println!("cargo:rustc-link-lib=stdc++");
         println!("cargo:rustc-link-lib=dylib=gomp");
     }
