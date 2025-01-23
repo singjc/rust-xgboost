@@ -2,9 +2,9 @@ extern crate bindgen;
 extern crate cmake;
 
 use cmake::Config;
-use std::process::Command;
 use std::env;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
     let target = env::var("TARGET").unwrap();
@@ -21,32 +21,23 @@ fn main() {
             });
     }
 
+    let mut dst = Config::new(&xgb_root);
+    dst.define("BUILD_STATIC_LIB", "ON").define("CMAKE_CXX_STANDARD", "17");
+
     // CMake
     #[cfg(feature = "cuda")]
-    let dst = Config::new(&xgb_root)
-        .uses_cxx11()
-        .define("BUILD_STATIC_LIB", "ON")
-        .define("USE_CUDA", "ON")
+    dst.define("USE_CUDA", "ON")
         .define("BUILD_WITH_CUDA", "ON")
         .define("BUILD_WITH_CUDA_CUB", "ON");
-
-    #[cfg(not(feature = "cuda"))]
-    let mut dst = Config::new(&xgb_root);
-
-    #[allow(unused_mut)]
-    let mut dst = dst.uses_cxx11()
-        .define("BUILD_STATIC_LIB", "ON");
 
     #[cfg(target_os = "macos")]
     {
         let path = PathBuf::from("/opt/homebrew/"); // check for m1 vs intel config
         if let Ok(_dir) = std::fs::read_dir(&path) {
-            dst =
-                dst
-                    .define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
-                    .define("CMAKE_CXX_COMPILER", "/opt/homebrew/opt/llvm/bin/clang++")
-                    .define("OPENMP_LIBRARIES", "/opt/homebrew/opt/llvm/lib")
-                    .define("OPENMP_INCLUDES", "/opt/homebrew/opt/llvm/include");
+            dst.define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
+                .define("CMAKE_CXX_COMPILER", "/opt/homebrew/opt/llvm/bin/clang++")
+                .define("OPENMP_LIBRARIES", "/opt/homebrew/opt/llvm/lib")
+                .define("OPENMP_INCLUDES", "/opt/homebrew/opt/llvm/include");
         };
     }
     let dst = dst.build();
@@ -56,16 +47,14 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .blocklist_item("std::__1.*")
-        .clang_args(&["-x", "c++", "-std=c++11"])
+        .clang_args(&["-x", "c++", "-std=c++17"])
         .clang_arg(format!("-I{}", xgb_root.join("include").display()))
         .clang_arg(format!("-I{}", xgb_root.join("rabit/include").display()))
         .clang_arg(format!("-I{}", xgb_root.join("dmlc-core/include").display()));
 
     #[cfg(feature = "cuda")]
     let bindings = bindings.clang_arg("-I/usr/local/cuda/include");
-    let bindings = bindings
-        .generate()
-        .expect("Unable to generate bindings.");
+    let bindings = bindings.generate().expect("Unable to generate bindings.");
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
