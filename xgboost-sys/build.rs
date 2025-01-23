@@ -26,11 +26,9 @@ fn main() {
 
     // CMake
     #[cfg(feature = "cuda")]
-    dst.define("BUILD_STATIC_LIB", "ON")
-        .define("USE_CUDA", "ON")
+    dst.define("USE_CUDA", "ON")
         .define("BUILD_WITH_CUDA", "ON")
-        .define("BUILD_WITH_CUDA_CUB", "ON")
-        .define("CMAKE_CXX_STANDARD", "17");
+        .define("BUILD_WITH_CUDA_CUB", "ON");
 
     #[cfg(target_os = "macos")]
     {
