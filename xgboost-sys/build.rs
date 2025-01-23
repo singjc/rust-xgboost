@@ -21,27 +21,22 @@ fn main() {
             });
     }
 
+    let mut dst = Config::new(&xgb_root);
+    dst.define("BUILD_STATIC_LIB", "ON").define("CMAKE_CXX_STANDARD", "17");
+
     // CMake
     #[cfg(feature = "cuda")]
-    let dst = Config::new(&xgb_root)
-        .define("BUILD_STATIC_LIB", "ON")
+    dst.define("BUILD_STATIC_LIB", "ON")
         .define("USE_CUDA", "ON")
         .define("BUILD_WITH_CUDA", "ON")
         .define("BUILD_WITH_CUDA_CUB", "ON")
         .define("CMAKE_CXX_STANDARD", "17");
 
-    #[cfg(not(feature = "cuda"))]
-    let mut dst = Config::new(&xgb_root);
-
-    #[allow(unused_mut)]
-    let mut dst = dst.define("BUILD_STATIC_LIB", "ON").define("CMAKE_CXX_STANDARD", "17");
-
     #[cfg(target_os = "macos")]
     {
         let path = PathBuf::from("/opt/homebrew/"); // check for m1 vs intel config
         if let Ok(_dir) = std::fs::read_dir(&path) {
-            dst = dst
-                .define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
+            dst.define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
                 .define("CMAKE_CXX_COMPILER", "/opt/homebrew/opt/llvm/bin/clang++")
                 .define("OPENMP_LIBRARIES", "/opt/homebrew/opt/llvm/lib")
                 .define("OPENMP_INCLUDES", "/opt/homebrew/opt/llvm/include");
