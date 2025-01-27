@@ -5,6 +5,12 @@
 
 Rust bindings for the [XGBoost](https://xgboost.ai) gradient boosting library.
 
+## Requirements
+
+- Clang v16.0.0
+
+## Documentation
+
 * [Documentation](https://docs.rs/xgboost)
 
 Basic usage example:
