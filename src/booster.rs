@@ -711,7 +711,6 @@ mod tests {
         assert!(res.is_ok());
     }
 
-
     #[test]
     fn get_set_attr() {
         let mut booster = load_test_booster();
