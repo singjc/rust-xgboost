@@ -1,5 +1,5 @@
-use dmatrix::DMatrix;
-use error::XGBError;
+use crate::dmatrix::DMatrix;
+use crate::error::XGBError;
 use libc;
 use std::collections::{BTreeMap, HashMap};
 use std::io::{self, BufRead, BufReader, Write};
@@ -13,7 +13,7 @@ use tempfile;
 use xgboost_sys;
 
 use super::XGBResult;
-use parameters::{BoosterParameters, TrainingParameters};
+use crate::parameters::{BoosterParameters, TrainingParameters};
 
 pub type CustomObjective = fn(&[f32], &DMatrix) -> (Vec<f32>, Vec<f32>);
 
@@ -148,29 +148,8 @@ impl Booster {
             dmats
         };
 
-        let mut bst = Booster::new_with_cached_dmats(&params.booster_params, &cached_dmats)?;
-        // load distributed code checkpoint from rabit
-        let mut version = bst.load_rabit_checkpoint()?;
-        debug!("Loaded Rabit checkpoint: version={}", version);
-        assert!(unsafe { xgboost_sys::RabitGetWorldSize() != 1 || version == 0 });
-        let start_iteration = version / 2;
-        for i in start_iteration..params.boost_rounds as i32 {
-            // distributed code: need to resume to this point
-            // skip first update if a recovery step
-            if version % 2 == 0 {
-                if let Some(objective_fn) = params.custom_objective_fn {
-                    debug!("Boosting in round: {}", i);
-                    bst.update_custom(params.dtrain, objective_fn)?;
-                } else {
-                    debug!("Updating in round: {}", i);
-                    bst.update(params.dtrain, i)?;
-                }
-                let _ = bst.save_rabit_checkpoint()?;
-                version += 1;
-            }
-
-            assert!(unsafe { xgboost_sys::RabitGetWorldSize() == 1 || version == xgboost_sys::RabitVersionNumber() });
-
+        let bst = Booster::new_with_cached_dmats(&params.booster_params, &cached_dmats)?;
+        for i in 0..params.boost_rounds as i32 {
             if let Some(eval_sets) = params.evaluation_sets {
                 let mut dmat_eval_results = bst.eval_set(eval_sets, i)?;
 
@@ -203,10 +182,6 @@ impl Booster {
                 }
                 println!();
             }
-
-            // do checkpoint after evaluation, in case evaluation also updates booster.
-            let _ = bst.save_rabit_checkpoint();
-            version += 1;
         }
 
         Ok(bst)
@@ -365,13 +340,16 @@ impl Booster {
         let mut out_len = 0;
         let mut out = ptr::null_mut();
         xgb_call!(xgboost_sys::XGBoosterGetAttrNames(self.handle, &mut out_len, &mut out))?;
-
-        let out_ptr_slice = unsafe { slice::from_raw_parts(out, out_len as usize) };
-        let out_vec = out_ptr_slice
-            .iter()
-            .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
-            .collect();
-        Ok(out_vec)
+        if out_len > 0 {
+            let out_ptr_slice = unsafe { slice::from_raw_parts(out, out_len as usize) };
+            let out_vec = out_ptr_slice
+                .iter()
+                .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
+                .collect();
+            Ok(out_vec)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     /// Predict results for given data.
@@ -517,7 +495,7 @@ impl Booster {
                 Err(err) => return Err(XGBError::new(err.to_string())),
             };
 
-            let file_path = tmp_dir.path().join("fmap.txt");
+            let file_path = tmp_dir.path().join("fmap.json");
             let mut file: File = match File::create(&file_path) {
                 Ok(f) => f,
                 Err(err) => return Err(XGBError::new(err.to_string())),
@@ -551,24 +529,18 @@ impl Booster {
             &mut out_dump_array
         ))?;
 
-        let out_ptr_slice = unsafe { slice::from_raw_parts(out_dump_array, out_len as usize) };
-        let out_vec: Vec<String> = out_ptr_slice
-            .iter()
-            .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
-            .collect();
+        if out_len > 0 {
+            let out_ptr_slice = unsafe { slice::from_raw_parts(out_dump_array, out_len as usize) };
+            let out_vec: Vec<String> = out_ptr_slice
+                .iter()
+                .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
+                .collect();
 
-        assert_eq!(out_len as usize, out_vec.len());
-        Ok(out_vec.join("\n"))
-    }
-
-    pub(crate) fn load_rabit_checkpoint(&self) -> XGBResult<i32> {
-        let mut version = 0;
-        xgb_call!(xgboost_sys::XGBoosterLoadRabitCheckpoint(self.handle, &mut version))?;
-        Ok(version)
-    }
-
-    pub(crate) fn save_rabit_checkpoint(&self) -> XGBResult<()> {
-        xgb_call!(xgboost_sys::XGBoosterSaveRabitCheckpoint(self.handle))
+            assert_eq!(out_len as usize, out_vec.len());
+            Ok(out_vec.join("\n"))
+        } else {
+            Ok(String::new())
+        }
     }
 
     pub fn set_param(&mut self, name: &str, value: &str) -> XGBResult<()> {
@@ -721,7 +693,7 @@ impl fmt::Display for FeatureType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parameters::{self, learning, tree};
+    use crate::parameters::{self, learning, tree};
 
     fn read_train_matrix() -> XGBResult<DMatrix> {
         DMatrix::load(r#"{"uri": "xgboost-sys/xgboost/demo/data/agaricus.txt.train?format=libsvm"}"#)
@@ -738,7 +710,6 @@ mod tests {
         let res = booster.set_param("key", "value");
         assert!(res.is_ok());
     }
-
 
     #[test]
     fn get_set_attr() {

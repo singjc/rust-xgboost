@@ -314,7 +314,11 @@ impl DMatrix {
             &mut out_dptr
         ))?;
 
-        Ok(unsafe { slice::from_raw_parts(out_dptr as *mut c_float, out_len as usize) })
+        if out_len > 0 {
+            Ok(unsafe { slice::from_raw_parts(out_dptr as *mut c_float, out_len as usize) })
+        } else {
+            Err(XGBError::new("error"))
+        }
     }
 
     fn set_float_info(&mut self, field: &str, array: &[f32]) -> XGBResult<()> {

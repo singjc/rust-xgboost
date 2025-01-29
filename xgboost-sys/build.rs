@@ -25,8 +25,12 @@ fn main() {
     dst.define("BUILD_STATIC_LIB", "ON").define("CMAKE_CXX_STANDARD", "17");
 
     // CMake
+    let mut dst = Config::new(&xgb_root);
+    let mut dst = dst.define("BUILD_STATIC_LIB", "ON");
+
     #[cfg(feature = "cuda")]
-    dst.define("USE_CUDA", "ON")
+    let mut dst = dst
+        .define("USE_CUDA", "ON")
         .define("BUILD_WITH_CUDA", "ON")
         .define("BUILD_WITH_CUDA_CUB", "ON");
 
@@ -34,7 +38,8 @@ fn main() {
     {
         let path = PathBuf::from("/opt/homebrew/"); // check for m1 vs intel config
         if let Ok(_dir) = std::fs::read_dir(&path) {
-            dst.define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
+            dst = dst
+                .define("CMAKE_C_COMPILER", "/opt/homebrew/opt/llvm/bin/clang")
                 .define("CMAKE_CXX_COMPILER", "/opt/homebrew/opt/llvm/bin/clang++")
                 .define("OPENMP_LIBRARIES", "/opt/homebrew/opt/llvm/lib")
                 .define("OPENMP_INCLUDES", "/opt/homebrew/opt/llvm/include");
@@ -54,9 +59,11 @@ fn main() {
 
     #[cfg(feature = "cuda")]
     let bindings = bindings.clang_arg("-I/usr/local/cuda/include");
-    let bindings = bindings.generate().expect("Unable to generate bindings.");
+    let bindings = bindings
+        .generate()
+        .expect("Unable to generate bindings.");
 
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_path = PathBuf::from(out_dir);
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings.");
