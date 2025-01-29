@@ -1,5 +1,5 @@
-use dmatrix::DMatrix;
-use error::XGBError;
+use crate::dmatrix::DMatrix;
+use crate::error::XGBError;
 use libc;
 use std::collections::{BTreeMap, HashMap};
 use std::io::{self, BufRead, BufReader, Write};
@@ -13,7 +13,7 @@ use tempfile;
 use xgboost_sys;
 
 use super::XGBResult;
-use parameters::{BoosterParameters, TrainingParameters};
+use crate::parameters::{BoosterParameters, TrainingParameters};
 
 pub type CustomObjective = fn(&[f32], &DMatrix) -> (Vec<f32>, Vec<f32>);
 
@@ -365,13 +365,16 @@ impl Booster {
         let mut out_len = 0;
         let mut out = ptr::null_mut();
         xgb_call!(xgboost_sys::XGBoosterGetAttrNames(self.handle, &mut out_len, &mut out))?;
-
-        let out_ptr_slice = unsafe { slice::from_raw_parts(out, out_len as usize) };
-        let out_vec = out_ptr_slice
-            .iter()
-            .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
-            .collect();
-        Ok(out_vec)
+        if out_len > 0 {
+            let out_ptr_slice = unsafe { slice::from_raw_parts(out, out_len as usize) };
+            let out_vec = out_ptr_slice
+                .iter()
+                .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
+                .collect();
+            Ok(out_vec)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     /// Predict results for given data.
@@ -517,7 +520,7 @@ impl Booster {
                 Err(err) => return Err(XGBError::new(err.to_string())),
             };
 
-            let file_path = tmp_dir.path().join("fmap.txt");
+            let file_path = tmp_dir.path().join("fmap.json");
             let mut file: File = match File::create(&file_path) {
                 Ok(f) => f,
                 Err(err) => return Err(XGBError::new(err.to_string())),
@@ -551,14 +554,18 @@ impl Booster {
             &mut out_dump_array
         ))?;
 
-        let out_ptr_slice = unsafe { slice::from_raw_parts(out_dump_array, out_len as usize) };
-        let out_vec: Vec<String> = out_ptr_slice
-            .iter()
-            .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
-            .collect();
+        if out_len > 0 {
+            let out_ptr_slice = unsafe { slice::from_raw_parts(out_dump_array, out_len as usize) };
+            let out_vec: Vec<String> = out_ptr_slice
+                .iter()
+                .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
+                .collect();
 
-        assert_eq!(out_len as usize, out_vec.len());
-        Ok(out_vec.join("\n"))
+            assert_eq!(out_len as usize, out_vec.len());
+            Ok(out_vec.join("\n"))
+        } else {
+            Ok(String::new())
+        }
     }
 
     pub(crate) fn load_rabit_checkpoint(&self) -> XGBResult<i32> {
@@ -721,7 +728,7 @@ impl fmt::Display for FeatureType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parameters::{self, learning, tree};
+    use crate::parameters::{self, learning, tree};
 
     fn read_train_matrix() -> XGBResult<DMatrix> {
         DMatrix::load(r#"{"uri": "xgboost-sys/xgboost/demo/data/agaricus.txt.train?format=libsvm"}"#)
