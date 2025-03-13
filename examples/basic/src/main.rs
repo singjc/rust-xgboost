@@ -12,9 +12,9 @@ fn main() {
 
     // load train and test matrices from text files (in LibSVM format).
     println!("Loading train and test matrices...");
-    let dtrain = DMatrix::load("../../xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
+    let dtrain = DMatrix::load(r#"{"uri": "../../xgboost-sys/xgboost/demo/data/agaricus.txt.train?format=libsvm"}"#).unwrap();
     println!("Train matrix: {}x{}", dtrain.num_rows(), dtrain.num_cols());
-    let dtest = DMatrix::load("../../xgboost-sys/xgboost/demo/data/agaricus.txt.test").unwrap();
+    let dtest = DMatrix::load(r#"{"uri": "../../xgboost-sys/xgboost/demo/data/agaricus.txt.test?format=libsvm"}"#).unwrap();
     println!("Test matrix: {}x{}", dtest.num_rows(), dtest.num_cols());
 
     // configure objectives, metrics, etc.
@@ -66,15 +66,15 @@ fn main() {
 
     // save and load model file
     println!("\nSaving and loading Booster model...");
-    booster.save("xgb.model").unwrap();
-    let booster = Booster::load("xgb.model").unwrap();
+    booster.save("xgb.json").unwrap();
+    let booster = Booster::load("xgb.json").unwrap();
     let preds2 = booster.predict(&dtest).unwrap();
     assert_eq!(preds, preds2);
 
     // save and load data matrix file
     println!("\nSaving and loading matrix data...");
     dtest.save("test.dmat").unwrap();
-    let dtest2 = DMatrix::load("test.dmat").unwrap();
+    let dtest2 = DMatrix::load_binary("test.dmat").unwrap();
     assert_eq!(booster.predict(&dtest2).unwrap(), preds);
 
     // error handling example

@@ -8,10 +8,14 @@ license = "MIT"
 repository = "https://github.com/davechallis/rust-xgboost"
 description = "Native bindings to the xgboost library"
 readme = "README.md"
+edition = "2021"
 
 [dependencies]
 libc = "0.2"
 
 [build-dependencies]
-bindgen = "0.71.1"
+bindgen = "0.71"
 cmake = "0.1"
+
+[features]
+cuda = []
