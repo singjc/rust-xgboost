@@ -50,6 +50,7 @@ fn main() {
     let xgb_root = xgb_root.canonicalize().unwrap();
 
     let bindings = bindgen::Builder::default()
+        .rust_target(bindgen::RustTarget::Stable_1_77)
         .header("wrapper.h")
         .blocklist_item("std::__1.*")
         .clang_args(&["-x", "c++", "-std=c++17"])
