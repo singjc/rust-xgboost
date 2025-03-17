@@ -230,6 +230,11 @@ pub struct LearningTaskParameters {
     /// *default*: 0.5
     base_score: f32,
 
+    /// Set number of features
+    /// 
+    /// *default*: 0
+    num_feature: usize,
+
     /// Metrics to use on evaluation data sets during training.
     ///
     /// *default*: [`Auto`](enum.Metrics.html#variant.Auto) (i.e. metrics selected automatically based on objective)
@@ -246,6 +251,7 @@ impl Default for LearningTaskParameters {
         LearningTaskParameters {
             objective: Objective::default(),
             base_score: 0.5,
+            num_feature: 0,
             eval_metrics: Metrics::Auto,
             seed: 0,
         }
@@ -267,6 +273,14 @@ impl LearningTaskParameters {
 
     pub fn set_base_score(&mut self, base_score: f32) {
         self.base_score = base_score;
+    }
+
+    pub fn num_feature(&self) -> usize {
+        self.num_feature
+    }
+
+    pub fn set_num_feature(&mut self, num_feature: usize) {
+        self.num_feature = num_feature;
     }
 
     pub fn eval_metrics(&self) -> &Metrics {
@@ -298,6 +312,7 @@ impl LearningTaskParameters {
 
         v.push(("objective".to_owned(), self.objective.to_string()));
         v.push(("base_score".to_owned(), self.base_score.to_string()));
+        v.push(("num_feature".to_owned(), self.num_feature.to_string()));
         v.push(("seed".to_owned(), self.seed.to_string()));
 
         if let Metrics::Custom(eval_metrics) = &self.eval_metrics {
