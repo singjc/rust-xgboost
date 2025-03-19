@@ -8,6 +8,7 @@ homepage = "https://github.com/davechallis/rust-xgboost"
 description = "Machine learning using XGBoost"
 documentation = "https://docs.rs/xgboost"
 readme = "README.md"
+edition = "2021"
 
 [dependencies]
 xgboost-sys = { path = "xgboost-sys" }
@@ -15,4 +16,4 @@ libc = "0.2"
 derive_builder = "0.5"
 log = "0.4"
 tempfile = "3.0"
-indexmap = "1.0"
+indexmap = "2.7"
