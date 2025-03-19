@@ -30,6 +30,7 @@ fn main() {
     let xgb_root = xgb_root.canonicalize().unwrap();
 
     let bindings = bindgen::Builder::default()
+        .rust_target(bindgen::RustTarget::Stable_1_77)
         .header("wrapper.h")
         .clang_args(&["-x", "c++", "-std=c++11"])
         .clang_arg(format!("-I{}", xgb_root.join("include").display()))
