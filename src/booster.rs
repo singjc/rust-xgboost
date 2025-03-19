@@ -4,8 +4,8 @@ use std::str::FromStr;
 use std::io::{self, Write, BufReader, BufRead};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
-use error::XGBError;
-use dmatrix::DMatrix;
+use crate::error::XGBError;
+use crate::dmatrix::DMatrix;
 use std::os::unix::ffi::OsStrExt;
 
 use xgboost_sys;
@@ -13,7 +13,7 @@ use tempfile;
 use indexmap::IndexMap;
 
 use super::XGBResult;
-use parameters::{BoosterParameters, TrainingParameters};
+use crate::parameters::{BoosterParameters, TrainingParameters};
 
 pub type CustomObjective = fn(&[f32], &DMatrix) -> (Vec<f32>, Vec<f32>);
 
@@ -670,7 +670,7 @@ impl fmt::Display for FeatureType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parameters::{self, learning, tree};
+    use crate::parameters::{self, learning, tree};
 
     fn read_train_matrix() -> XGBResult<DMatrix> {
         DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train")
