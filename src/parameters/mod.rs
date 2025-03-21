@@ -130,6 +130,14 @@ pub struct TrainingParameters<'a> {
     #[builder(default="10")]
     pub(crate) boost_rounds: u32,
 
+    /// Early stopping round to use during training.
+    /// If the evaluation metric does not improve for this many rounds, training will stop.
+    /// If `None`, early stopping is disabled.
+    /// 
+    /// *default*: `None`
+    #[builder(default="None")]
+    pub(crate) early_stopping_rounds: Option<u32>,
+
     /// Configuration for the booster model that will be trained.
     ///
     /// *default*: `BoosterParameters::default()`
@@ -174,6 +182,14 @@ impl <'a> TrainingParameters<'a> {
 
     pub fn set_boost_rounds(&mut self, boost_rounds: u32) {
         self.boost_rounds = boost_rounds;
+    }
+
+    pub fn early_stopping_rounds(&self) -> &Option<u32> {
+        &self.early_stopping_rounds
+    }
+
+    pub fn set_early_stopping_rounds<T: Into<Option<u32>>>(&mut self, early_stopping_rounds: T) {
+        self.early_stopping_rounds = early_stopping_rounds.into();
     }
 
     pub fn booster_params(&self) -> &BoosterParameters {
