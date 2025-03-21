@@ -227,8 +227,10 @@ pub struct LearningTaskParameters {
 
     /// Initial prediction score, i.e. global bias.
     ///
-    /// *default*: 0.5
-    base_score: f32,
+    /// Since version 2.0.0, XGBoost supports estiamting the model intercept automatically based on targes upon training. See: https://xgboost.readthedocs.io/en/stable/tutorials/intercept.html
+    /// 
+    /// *default*: None
+    base_score: Option<f32>,
 
     /// Set number of features
     /// 
@@ -250,7 +252,7 @@ impl Default for LearningTaskParameters {
     fn default() -> Self {
         LearningTaskParameters {
             objective: Objective::default(),
-            base_score: 0.5,
+            base_score: None,
             num_feature: 0,
             eval_metrics: Metrics::Auto,
             seed: 0,
@@ -268,11 +270,11 @@ impl LearningTaskParameters {
     }
 
     pub fn base_score(&self) -> f32 {
-        self.base_score
+        self.base_score.expect("base_score not explicitly set")
     }
 
     pub fn set_base_score(&mut self, base_score: f32) {
-        self.base_score = base_score;
+        self.base_score = Some(base_score);
     }
 
     pub fn num_feature(&self) -> usize {
@@ -311,7 +313,9 @@ impl LearningTaskParameters {
         }
 
         v.push(("objective".to_owned(), self.objective.to_string()));
-        v.push(("base_score".to_owned(), self.base_score.to_string()));
+        if let Some(base_score) = self.base_score {
+            v.push(("base_score".to_owned(), base_score.to_string()));
+        }
         v.push(("num_feature".to_owned(), self.num_feature.to_string()));
         v.push(("seed".to_owned(), self.seed.to_string()));
 
