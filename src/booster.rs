@@ -356,25 +356,44 @@ impl Booster {
     ///
     /// Returns an array containing one entry per row in the given data.
     pub fn predict(&self, dmat: &DMatrix) -> XGBResult<Vec<f32>> {
-        let option_mask = PredictOption::options_as_mask(&[]);
-        let ntree_limit = 0;
-        let mut out_len = 0;
-        let mut out_result = ptr::null();
-        xgb_call!(xgboost_sys::XGBoosterPredict(
+        // Define the JSON configuration for the prediction
+        let config = r#"
+        {
+            "type": 0,
+            "training": false,
+            "iteration_begin": 0,
+            "iteration_end": 0,
+            "strict_shape": true
+        }"#;
+
+        // Variables to store the output shape, dimension, and result
+        let mut out_shape: *const xgboost_sys::bst_ulong = ptr::null();
+        let mut out_dim: xgboost_sys::bst_ulong = 0;
+        let mut out_result: *const f32 = ptr::null();
+
+        // Call the XGBoosterPredictFromDMatrix function
+        xgb_call!(xgboost_sys::XGBoosterPredictFromDMatrix(
             self.handle,
             dmat.handle,
-            option_mask,
-            ntree_limit,
-            0,
-            &mut out_len,
+            config.as_ptr() as *const i8,
+            &mut out_shape,
+            &mut out_dim,
             &mut out_result
         ))?;
 
+        // Ensure the output result is not null
         assert!(!out_result.is_null());
-        let data = unsafe { slice::from_raw_parts(out_result, out_len as usize).to_vec() };
+
+        // Calculate the total number of elements in the output
+        let out_shape_slice = unsafe { slice::from_raw_parts(out_shape, out_dim as usize) };
+        let total_elements = out_shape_slice.iter().product::<xgboost_sys::bst_ulong>() as usize;
+
+        // Convert the raw pointer to a Vec<f32>
+        let data = unsafe { slice::from_raw_parts(out_result, total_elements).to_vec() };
+
         Ok(data)
     }
-
+    
     /// Predict margin for given data.
     ///
     /// Returns an array containing one entry per row in the given data.
