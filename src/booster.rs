@@ -191,13 +191,15 @@ impl Booster {
                 }
 
                 // Print evaluation results
-                print!("[{}]", i);
-                for (eval_name, dmat_results) in eval_dmat_results {
-                    for (dmat_name, result) in dmat_results {
-                        print!("\t{}-{}:{}", dmat_name, eval_name, result);
+                if params.booster_params.verbose(){
+                    print!("[{}]", i);
+                    for (eval_name, dmat_results) in eval_dmat_results {
+                        for (dmat_name, result) in dmat_results {
+                            print!("\t{}-{}:{}", dmat_name, eval_name, result);
+                        }
                     }
+                    println!();
                 }
-                println!();
 
                 // Early stopping logic
                 if let Some(early_stopping_rounds) = params.early_stopping_rounds
@@ -218,7 +220,7 @@ impl Booster {
                     }
 
                     if rounds_without_improvement >= early_stopping_rounds {
-                        info!("Early stopping at iteration {} (best iteration: {})", i, best_iteration);
+                        info!("[{}] Early stopping at iteration {}: logloss = {} (best iteration {}: logloss = {})", validation_set_name, i, validation_metric, best_iteration, best_metric);
                         break;
                     }
                 }
