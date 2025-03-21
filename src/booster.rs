@@ -128,6 +128,7 @@ impl Booster {
     /// * `params` - training parameters
     /// * `dtrain` - matrix to train Booster with
     /// * `num_boost_round` - number of training iterations
+    /// * `early_stopping_rounds` - number of rounds to wait for improvement before stopping
     /// * `eval_sets` - list of datasets to evaluate after each boosting round
     pub fn train(params: &TrainingParameters) -> XGBResult<Self> {
         let cached_dmats = {
@@ -141,20 +142,18 @@ impl Booster {
         };
 
         let mut bst = Booster::new_with_cached_dmats(&params.booster_params, &cached_dmats)?;
-        //let num_parallel_tree = 1;
-
-        // load distributed code checkpoint from rabit
         let version = bst.load_rabit_checkpoint()?;
         debug!("Loaded Rabit checkpoint: version={}", version);
         assert!(unsafe { xgboost_sys::RabitGetWorldSize() != 1 || version == 0 });
 
-        let _rank = unsafe { xgboost_sys::RabitGetRank() };
         let start_iteration = version / 2;
-        //let mut nboost = start_iteration;
+
+        // Early stopping variables
+        let mut best_iteration = 0;
+        let mut best_metric = f32::MAX; // TODO: Current assumes lower metric is better 
+        let mut rounds_without_improvement = 0;
 
         for i in start_iteration..params.boost_rounds as i32 {
-            // distributed code: need to resume to this point
-            // skip first update if a recovery step
             if version % 2 == 0 {
                 if let Some(objective_fn) = params.custom_objective_fn {
                     debug!("Boosting in round: {}", i);
@@ -167,8 +166,6 @@ impl Booster {
             }
 
             assert!(unsafe { xgboost_sys::RabitGetWorldSize() == 1 || version == xgboost_sys::RabitVersionNumber() });
-
-            //nboost += 1;
 
             if let Some(eval_sets) = params.evaluation_sets {
                 let mut dmat_eval_results = bst.eval_set(eval_sets, i)?;
@@ -184,7 +181,7 @@ impl Booster {
                     }
                 }
 
-                // convert to map of eval_name -> (dmat_name -> score)
+                // Convert to map of eval_name -> (dmat_name -> score)
                 let mut eval_dmat_results = BTreeMap::new();
                 for (dmat_name, eval_results) in &dmat_eval_results {
                     for (eval_name, result) in eval_results {
@@ -193,6 +190,7 @@ impl Booster {
                     }
                 }
 
+                // Print evaluation results
                 print!("[{}]", i);
                 for (eval_name, dmat_results) in eval_dmat_results {
                     for (dmat_name, result) in dmat_results {
@@ -200,7 +198,36 @@ impl Booster {
                     }
                 }
                 println!();
+
+                // Early stopping logic
+                if let Some(early_stopping_rounds) = params.early_stopping_rounds
+                {
+                    // Assuming the last eval set is the validation set
+                    let (_, validation_set_name) = eval_sets.last().unwrap();
+                    let validation_metric = dmat_eval_results
+                        .get(&**validation_set_name)
+                        .and_then(|results| results.values().next().cloned())
+                        .unwrap_or(f32::MAX);
+
+                    if validation_metric < best_metric {
+                        best_metric = validation_metric;
+                        best_iteration = i;
+                        rounds_without_improvement = 0;
+                    } else {
+                        rounds_without_improvement += 1;
+                    }
+
+                    if rounds_without_improvement >= early_stopping_rounds {
+                        info!("Early stopping at iteration {} (best iteration: {})", i, best_iteration);
+                        break;
+                    }
+                }
             }
+        }
+
+        // Load the best model if early stopping was used
+        if let Some(_early_stopping_rounds) = params.early_stopping_rounds {
+            bst.load_rabit_checkpoint()?; // Reload the best model state
         }
 
         Ok(bst)
