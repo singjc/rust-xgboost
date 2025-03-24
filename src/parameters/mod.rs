@@ -153,6 +153,13 @@ pub struct TrainingParameters<'a> {
     /// *default*: `None`
     pub(crate) evaluation_sets: Option<&'a[(&'a DMatrix, &'a str)]>,
 
+    #[builder(default="None")]
+    /// Direction of evaluation score to use for early stopping.
+    /// Can be either "high" or "low". "high" means the highest score is the best, "low" means the lowest score is the best.
+    /// 
+    /// *default*: `"high"`
+    pub(crate) evaluation_score_direction: Option<&'a str>,
+
     /// Optional custom objective function to use for training.
     ///
     /// *default*: `None`
@@ -206,6 +213,14 @@ impl <'a> TrainingParameters<'a> {
 
     pub fn set_evaluation_sets(&mut self, evaluation_sets: Option<&'a[(&'a DMatrix, &'a str)]>) {
         self.evaluation_sets = evaluation_sets;
+    }
+
+    pub fn evaluation_score_direction(&self) -> &Option<&'a str> {
+        &self.evaluation_score_direction
+    }
+
+    pub fn set_evaluation_score_direction(&mut self, evaluation_score_direction: Option<&'a str>) {
+        self.evaluation_score_direction = evaluation_score_direction;
     }
 
     pub fn custom_objective_fn(&self) -> &Option<CustomObjective> {
