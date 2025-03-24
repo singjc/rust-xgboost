@@ -150,7 +150,7 @@ impl Booster {
 
         // Early stopping variables
         let mut best_iteration = 0;
-        let mut best_metric = f32::MAX; // TODO: Current assumes lower metric is better 
+        let mut best_metric = if params.evaluation_score_direction == Some("high") { f32::MIN } else { f32::MAX };
         let mut rounds_without_improvement = 0;
 
         for i in start_iteration..params.boost_rounds as i32 {
@@ -193,7 +193,7 @@ impl Booster {
                 // Print evaluation results
                 if params.booster_params.verbose(){
                     print!("[{}]", i);
-                    for (eval_name, dmat_results) in eval_dmat_results {
+                    for (eval_name, dmat_results) in eval_dmat_results.clone() {
                         for (dmat_name, result) in dmat_results {
                             print!("\t{}-{}:{}", dmat_name, eval_name, result);
                         }
@@ -204,14 +204,28 @@ impl Booster {
                 // Early stopping logic
                 if let Some(early_stopping_rounds) = params.early_stopping_rounds
                 {
-                    // Assuming the last eval set is the validation set
-                    let (_, validation_set_name) = eval_sets.last().unwrap();
-                    let validation_metric = dmat_eval_results
-                        .get(&**validation_set_name)
-                        .and_then(|results| results.values().next().cloned())
-                        .unwrap_or(f32::MAX);
 
-                    if validation_metric < best_metric {
+                    let mut validation_metric = match params.evaluation_score_direction.as_deref() {
+                        Some("high") => f32::MIN,
+                        _ => f32::MAX,
+                    };
+                    
+                    let validation_set_name = dmat_eval_results
+                        .get("custom")
+                        .and_then(|inner_map| inner_map.get("eval"))
+                        .map(|result| {
+                            validation_metric = *result;
+                            "custom-eval".to_string()  // Pre-computed string
+                        })
+                        .unwrap_or_default();
+
+                    let is_better = match params.evaluation_score_direction.as_deref() {
+                        Some("high") => validation_metric > best_metric,
+                        Some("low") => validation_metric < best_metric,
+                        _ => validation_metric > best_metric, // default to "high" if not specified
+                    };
+                    
+                    if is_better {
                         best_metric = validation_metric;
                         best_iteration = i;
                         rounds_without_improvement = 0;
@@ -220,7 +234,7 @@ impl Booster {
                     }
 
                     if rounds_without_improvement >= early_stopping_rounds {
-                        info!("[{}] Early stopping at iteration {}: logloss = {} (best iteration {}: logloss = {})", validation_set_name, i, validation_metric, best_iteration, best_metric);
+                        info!("[{}] Early stopping at iteration {}: {} = {} (best iteration {}: {} = {})", validation_set_name, i, validation_set_name, validation_metric, best_iteration, validation_set_name, best_metric);
                         break;
                     }
                 }
